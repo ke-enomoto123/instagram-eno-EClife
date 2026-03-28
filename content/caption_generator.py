@@ -71,9 +71,18 @@ def _generate_caption(topic: str, pattern: str, campaign_info: str) -> str:
 {length_instruction}
 {campaign_section}
 
+【SoftBankユーザー向け基礎知識（事実のみ・必要に応じて活用）】
+- LYPプレミアム：通常月額508円（税込）→ SoftBankの対象プランユーザーは無料で使える
+- LYPプレミアム会員はYahoo!ショッピングでポイント還元率が毎日+2倍になる
+- PayPayカードのYahoo!ショッピング利用でさらに+1倍（合計で最大5〜7%還元も可能）
+- PayPayカード基本還元率：1.5%（どこで使っても）
+- PayPayステップ：月の利用条件を達成すると翌月の還元率が最大+0.5%アップ
+- Yahoo!ショッピングは5のつく日・日曜日にポイント倍増キャンペーンが多い
+- SoftBankまとめて支払いでPayPayポイントが貯まるサービスもある
+
 【ルール】
-- SoftBank・PayPay・Yahoo!ショッピング・LYPプレミアム・PayPayカードに関連させる
-- 捏造はNG。具体的な数字はよく知られた事実のみ（例：PayPayカードは1.5%還元など）
+- 「SoftBankユーザーなら」「SoftBankユーザーだから」「SoftBankユーザーは」のニュアンスを自然に含める
+- 捏造はNG。具体的な数字は上記の基礎知識か、よく知られた事実のみ使用
 - 企業の宣伝っぽくならない。あくまで一ユーザーの体験・発見として書く
 - 絵文字を1〜2個使う
 - 最後に「。」をつけない
@@ -153,7 +162,7 @@ def build_caption() -> dict:
     selected_hashtags = random.sample(HASHTAGS_JA, min(7, len(HASHTAGS_JA)))
     hashtag_text = " ".join(selected_hashtags)
 
-    full_caption = f"{caption}\n\n共感したら保存してね💡\n\n{hashtag_text}"
+    full_caption = f"{caption}\n\n{hashtag_text}"
 
     return {
         "caption": full_caption,
