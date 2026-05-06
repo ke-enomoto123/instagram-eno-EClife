@@ -73,11 +73,38 @@ def _get_access_token() -> str:
     return access_token
 
 
-def post_tweet(text: str, x_username: str = "eno_sbpaylife") -> str:
-    """
-    X（Twitter）にツイートを投稿する。
-    Returns: tweet_id
-    """
+def _upload_media(image_path: str, access_token: str) -> str:
+    """画像をX v2 Media Upload APIでアップロードし media_id を返す"""
+    print(f"[X] 画像アップロード中: {image_path}")
+
+    with open(image_path, "rb") as f:
+        image_data = f.read()
+
+    mime_type = "image/jpeg"
+    if image_path.lower().endswith(".png"):
+        mime_type = "image/png"
+    elif image_path.lower().endswith(".gif"):
+        mime_type = "image/gif"
+
+    response = requests.post(
+        "https://api.x.com/2/media/upload",
+        headers={"Authorization": f"Bearer {access_token}"},
+        files={"media": (os.path.basename(image_path), image_data, mime_type)},
+        timeout=60,
+    )
+
+    if not response.ok:
+        print(f"[X] v2アップロードエラー: {response.status_code} {response.text}")
+        response.raise_for_status()
+
+    data = response.json()
+    media_id = str(data.get("data", {}).get("id") or data.get("media_id") or data["id"])
+    print(f"[X] 画像アップロード完了: media_id={media_id}")
+    return media_id
+
+
+def post_tweet(text: str, x_username: str = "eno_EClife") -> str:
+    """X（Twitter）にテキストのみのツイートを投稿する。"""
     print(f"[X] ツイート投稿開始...")
     print(f"[X] 文字数: {len(text)}")
     print(f"[X] 内容: {text[:60]}...")
@@ -92,6 +119,34 @@ def post_tweet(text: str, x_username: str = "eno_sbpaylife") -> str:
             "Content-Type": "application/json",
         },
         json={"text": text},
+        timeout=30,
+    )
+
+    if not response.ok:
+        print(f"[X] 投稿エラー詳細: {response.text}")
+    response.raise_for_status()
+
+    tweet_id = str(response.json()["data"]["id"])
+    print(f"[X] 投稿完了! Tweet ID: {tweet_id}")
+    print(f"[X] URL: https://x.com/{x_username}/status/{tweet_id}")
+    return tweet_id
+
+
+def post_tweet_with_image(text: str, image_path: str, x_username: str = "eno_EClife") -> str:
+    """X（Twitter）に画像付きツイートを投稿する。"""
+    print(f"[X] 画像付きツイート投稿開始...")
+    print(f"[X] 文字数: {len(text)}")
+
+    access_token = _get_access_token()
+    media_id = _upload_media(image_path, access_token)
+
+    response = requests.post(
+        "https://api.x.com/2/tweets",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        },
+        json={"text": text, "media": {"media_ids": [media_id]}},
         timeout=30,
     )
 
