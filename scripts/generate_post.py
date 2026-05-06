@@ -1,6 +1,6 @@
 """
 generate_post.py
-キャプション生成 → 画像生成 → imgbb保存 → Slack通知
+キャプション生成 → 画像生成 → imgbb保存 → Slack通知（Instagram＋X両方）
 """
 import os
 import sys
@@ -34,26 +34,26 @@ def upload_to_imgbb(image_path: str) -> str:
     return url
 
 
-def notify_slack(caption: str, image_url: str, run_url: str):
-    """Slackにキャプション＋画像プレビューを通知"""
+def notify_slack(caption: str, image_url: str, x_text: str, run_url: str):
+    """SlackにInstagram＋X両方のプレビューを通知"""
     webhook_url = os.getenv("SLACK_WEBHOOK_URL")
     if not webhook_url:
         print("[Slack] SLACK_WEBHOOK_URL未設定 → スキップ")
         return
 
+    x_char = len(x_text)
+    x_status = "✅" if x_char <= 280 else "⚠️ 文字数オーバー"
+
     payload = {
-        "text": f"📸 Instagram投稿チェック依頼（{ACCOUNT_USERNAME}）",
+        "text": f"📸🐦 Instagram＋X投稿チェック依頼（{ACCOUNT_USERNAME}）",
         "blocks": [
             {
                 "type": "header",
-                "text": {"type": "plain_text", "text": f"📸 投稿プレビュー｜{ACCOUNT_NAME}（{ACCOUNT_USERNAME}）"}
+                "text": {"type": "plain_text", "text": f"📸🐦 投稿プレビュー｜{ACCOUNT_NAME}（{ACCOUNT_USERNAME}）"}
             },
             {
                 "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"*キャプション:*\n```{caption}```"
-                }
+                "text": {"type": "mrkdwn", "text": "*📸 Instagramキャプション:*\n```" + caption + "```"}
             },
             {
                 "type": "image",
@@ -61,11 +61,22 @@ def notify_slack(caption: str, image_url: str, run_url: str):
                 "alt_text": "投稿画像プレビュー"
             },
             {
+                "type": "divider"
+            },
+            {
                 "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": "👆 内容を確認して、GitHubで承認または却下してください"
-                }
+                "text": {"type": "mrkdwn", "text": f"*🐦 X投稿テキスト:*\n```{x_text}```"}
+            },
+            {
+                "type": "section",
+                "fields": [
+                    {"type": "mrkdwn", "text": f"*X文字数:* {x_char} / 280　{x_status}"},
+                    {"type": "mrkdwn", "text": "*(同じ画像をXにも投稿します)*"}
+                ]
+            },
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": "👆 内容を確認して、GitHubで承認または却下してください"}
             },
             {
                 "type": "actions",
@@ -93,17 +104,23 @@ def main():
     print(f"[Generate] 開始: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 50)
 
-    # キャプション生成
+    # Instagramキャプション生成
     result = build_caption()
     caption = result["caption"]
     print(f"\n[Generate] キャプション:\n{caption}")
     print(f"[Generate] 文字数: {len(caption)} / スコア: {result['score']}")
 
-    # 画像生成
+    # X用テキスト生成（別途短めに生成）
+    x_result = build_caption()
+    x_text_raw = x_result["caption"]
+    x_text = x_text_raw[:270] + "…" if len(x_text_raw) > 270 else x_text_raw
+    print(f"\n[Generate] X用テキスト:\n{x_text}")
+
+    # 画像生成（Instagram・X共用）
     save_path = "/tmp/post_image.jpg"
     image_local, dalle_url = generate_image(caption, save_path)
 
-    # imgbbにアップロード（DALL-E URLは1時間で期限切れのため）
+    # imgbbにアップロード
     try:
         image_url = upload_to_imgbb(image_local)
     except Exception as e:
@@ -114,6 +131,7 @@ def main():
     post_data = {
         "caption": caption,
         "image_url": image_url,
+        "x_text": x_text,
         "generated_at": datetime.datetime.now().isoformat(),
     }
     with open("post_data.json", "w", encoding="utf-8") as f:
@@ -126,8 +144,8 @@ def main():
     run_id = os.getenv("GITHUB_RUN_ID", "")
     run_url = f"{server}/{repo}/actions/runs/{run_id}"
 
-    # Slack通知
-    notify_slack(caption, image_url, run_url)
+    # Slack通知（Instagram＋X両方）
+    notify_slack(caption, image_url, x_text, run_url)
 
 
 if __name__ == "__main__":
