@@ -97,6 +97,12 @@ RULES:
 - Primary: {BRAND_COLOR_HEX} red. Secondary: #FFD700 gold/yellow
 - NO CTA button. NO photographic faces — flat illustration style
 - Scroll-stopping visual impact
+
+⚠️ CRITICAL ACCURACY RULES:
+- For PayPay points/wallet visuals: use PayPay logo (red circle with white "P"), NEVER use Tポイント (yellow T) or any other point service brand mark
+- For SoftBank/Yahoo/PayPay/LINE 連携 (linkage) diagrams: the CENTRAL HUB is "Yahoo! JAPAN ID", with three separate connections: (1) SoftBank ↔ Yahoo! JAPAN ID via Smart Login, (2) PayPay ↔ Yahoo! JAPAN ID, (3) LINE ↔ Yahoo! JAPAN ID. NEVER draw a direct "My SoftBank ↔ PayPay" connection.
+- All numbers/percentages shown must be factually accurate (Yahoo!ショッピング is "+5%上乗せ" structure, not "1%→6%" misleading single-rate comparison)
+- 日曜+5% means +5% ON TOP of existing rates (max 12% total with LYP+LINE), not "5% in isolation"
 """
 
 
@@ -150,6 +156,11 @@ DESIGN RULES:
 - Gray or light blue for negative "before" elements
 - Japanese text must be perfectly rendered
 - Feels like a discovery — the reader should think "え、知らなかった！"
+
+⚠️ CRITICAL ACCURACY RULES:
+- For PayPay points/wallet visuals: use PayPay logo (red circle with white "P"), NEVER use Tポイント (yellow T) or any other point service brand mark
+- For SoftBank/Yahoo/PayPay/LINE 連携 (linkage) diagrams: CENTRAL HUB is "Yahoo! JAPAN ID", with three connections: (1) SoftBank/My SoftBank ↔ Yahoo! JAPAN ID, (2) PayPay ↔ Yahoo! JAPAN ID, (3) LINE ↔ Yahoo! JAPAN ID. NEVER show "My SoftBank ↔ PayPay" direct link.
+- BEFORE/AFTER comparisons must reflect realistic deltas. 日曜+5% adds on top of existing 7% (LYP+LINE) → 12% total, not "1% → 6%". Use accurate baseline.
 """
 
 
