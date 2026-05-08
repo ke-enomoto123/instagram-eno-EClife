@@ -11,7 +11,7 @@ import requests
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from content.caption_generator import build_caption
+from content.caption_generator import build_caption, build_x_caption
 from content.image_generator import generate_image
 
 
@@ -110,10 +110,9 @@ def main():
     print(f"\n[Generate] キャプション:\n{caption}")
     print(f"[Generate] 文字数: {len(caption)} / スコア: {result['score']}")
 
-    # X用テキスト生成（別途短めに生成）
-    x_result = build_caption()
-    x_text_raw = x_result["caption"]
-    x_text = x_text_raw[:270] + "…" if len(x_text_raw) > 270 else x_text_raw
+    # X用テキスト生成（X専用の短文・重み付き文字数で120字以内厳守）
+    x_result = build_x_caption()
+    x_text = x_result["caption"]
     print(f"\n[Generate] X用テキスト:\n{x_text}")
 
     # 画像生成（Instagram・X共用）

@@ -29,14 +29,26 @@ def _load_campaign_info() -> str:
     return ""
 
 
-def _select_topic_with_priority() -> tuple[str, str, str]:
+def _select_topic_with_priority(forced_topic: str = None) -> tuple[str, str, str]:
     """
-    投稿トピックを優先度に従って選定。
+    投稿トピックを優先度に従って選定。forced_topic 指定時は優先度を無視。
     優先度: ① キャンペーン情報 ② 月初/週初のお得カレンダー ③ 連携系（40%）④ 通常 topic（60%）
     返値: (topic, mode, extra_context_block)
-      mode: "campaign" / "calendar" / "linkage" / "normal"
+      mode: "forced" / "campaign" / "calendar" / "linkage" / "normal"
       extra_context_block: プロンプトに追加で挿入する文字列ブロック
     """
+    if forced_topic:
+        campaign = _load_campaign_info()
+        block = ""
+        if campaign:
+            block = f"""
+【今使えるキャンペーン情報（事実のみ使用、捏造禁止）】
+{campaign}
+
+このキャンペーン情報も自然に絡めてください。
+"""
+        return (forced_topic, "forced", block)
+
     today = datetime.date.today()
     is_week_start = today.weekday() == 0  # 月曜
     is_month_start = today.day <= 3
@@ -194,8 +206,8 @@ def _score_caption(caption: str, topic: str) -> float:
     except:
         return 7.0
 
-def build_caption() -> dict:
-    topic, mode, extra_block = _select_topic_with_priority()
+def build_caption(forced_topic: str = None) -> dict:
+    topic, mode, extra_block = _select_topic_with_priority(forced_topic=forced_topic)
     # mode によってパターンも調整
     if mode == "campaign":
         pattern = "キャンペーン紹介型"
@@ -235,3 +247,115 @@ def build_caption() -> dict:
         "pattern": pattern,
         "mode": mode,
     }
+
+
+def build_x_caption(forced_topic: str = None) -> dict:
+    """X (Twitter) 専用：短くシンプルな投稿を生成（IG とは別文・100〜120日本語字以内）"""
+    topic, mode, extra_block = _select_topic_with_priority(forced_topic=forced_topic)
+    print(f"[X Caption] mode={mode} / トピック: {topic}")
+
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+    prompt = f"""あなたは以下のペルソナでX（Twitter）の投稿を書いてください。
+
+【ペルソナ】
+{ACCOUNT_PERSONA}
+
+【投稿トピック】
+{topic}
+{extra_block}
+
+【⚠️ X の文字数仕様（厳守）】
+- X は日本語1文字を「重み2」、英数字を「重み1」でカウントし、合計280まで
+- 日本語のみだと **実質135字が上限**、ハッシュタグや記号も含むので余裕を見て120字
+- 本文は **日本語100〜120字**（ハッシュタグ含めて） を厳守
+- 超えるとエラー（403 Forbidden）になる
+
+【ルール】
+- 短くてリズムよく、2〜3段落・各1〜2文
+- 絵文字は1〜2個のみ
+- 最後に問いかけか共感を誘う一文で締める
+- ハッシュタグはメイン末尾に最大2個まで（含めて120字以内）
+- 「。」は付けない
+- 捏造NG。具体的な数字は基礎知識か事実のみ使用
+- 切れて『…』で終わるのは絶対NG。最初から120字に収まる完結した文を書く
+
+本文のみ出力。"""
+
+    message = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=400,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    caption = message.content[0].text.strip().rstrip("。").rstrip("．")
+
+    if _tweet_weight(caption) > 270:
+        caption = _truncate_for_x(caption, max_weight=270)
+        print(f"[X Caption] 重み超過 → 文末記号でtruncate")
+
+    print(f"[X Caption] 文字数: {len(caption)} 重み: {_tweet_weight(caption)}/280")
+
+    return {
+        "caption": caption,
+        "score": 7.0,
+        "topic": topic,
+        "pattern": "X専用",
+        "mode": mode,
+    }
+
+
+def _tweet_weight(text: str) -> int:
+    """X (Twitter) の重み付き文字数を計算（CJKは2、Latin系は1）"""
+    weight = 0
+    for ch in text:
+        cp = ord(ch)
+        if (0x0000 <= cp <= 0x10FF) or \
+           (0x2000 <= cp <= 0x200D) or \
+           (0x2010 <= cp <= 0x201F) or \
+           (0x2032 <= cp <= 0x2037):
+            weight += 1
+        else:
+            weight += 2
+    return weight
+
+
+def _truncate_for_x(text: str, max_weight: int = 270) -> str:
+    """重み付き文字数で max_weight 以内に収める。文末記号で切れるよう優先。"""
+    import re
+    if _tweet_weight(text) <= max_weight:
+        return text
+    parts = re.split(r"(\n+|。|！|？)", text)
+    chunks = []
+    cur = ""
+    for p in parts:
+        if not p:
+            continue
+        if re.fullmatch(r"\n+|。|！|？", p):
+            cur += p
+            chunks.append(cur)
+            cur = ""
+        else:
+            cur += p
+    if cur:
+        chunks.append(cur)
+    result = ""
+    for chunk in chunks:
+        if _tweet_weight(result + chunk) <= max_weight:
+            result += chunk
+        else:
+            break
+    if not result.strip():
+        weight = 0
+        idx = len(text)
+        for i, ch in enumerate(text):
+            cp = ord(ch)
+            cw = 1 if (0x0000 <= cp <= 0x10FF) or \
+                      (0x2000 <= cp <= 0x200D) or \
+                      (0x2010 <= cp <= 0x201F) or \
+                      (0x2032 <= cp <= 0x2037) else 2
+            if weight + cw > max_weight:
+                idx = i
+                break
+            weight += cw
+        return text[:idx].rstrip()
+    return result.rstrip()
